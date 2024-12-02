@@ -75,7 +75,6 @@ func (t *BinanceTask) fetchAnnouncement() {
 				if c.Type == html.ElementNode && c.Data == "div" {
 					hash := md5.Sum([]byte(c.FirstChild.Data))
 					hash2hex := hex.EncodeToString(hash[:])
-					log.Println("[Binance Announcement] ", c.FirstChild.Data, "Hash:", hash2hex)
 
 					// check if hash2hex exists in level db, if exists, skip
 					_, err := t.db.Get([]byte(hash2hex))
@@ -84,6 +83,7 @@ func (t *BinanceTask) fetchAnnouncement() {
 						return
 					}
 
+					log.Println("[Binance Announcement] ", c.FirstChild.Data, "Hash:", hash2hex)
 					// if not exists, store to level db and publish to subscribers
 					t.db.Put([]byte(hash2hex), []byte(c.FirstChild.Data))
 					// publish to subscribers
@@ -94,6 +94,7 @@ func (t *BinanceTask) fetchAnnouncement() {
 					}
 
 					if data, err := json.Marshal(obj); err == nil {
+
 						t.ps.Publish(BinanceAnnouncement, string(data))
 					} else {
 						log.Println("Error marshaling JSON:", err)
