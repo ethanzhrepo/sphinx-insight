@@ -68,8 +68,10 @@ func (t *BinanceTask) fetchAnnouncement() {
 	f = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "a" {
 			// herf
-			herf := n.Attr[0].Val
-			log.Println("[Binance Announcement] ", herf)
+			var herf string
+			if len(n.Attr) > 1 && n.Attr[1].Key == "href" {
+				herf = n.Attr[1].Val
+			}
 
 			for c := n.FirstChild; c != nil; c = c.NextSibling {
 				if c.Type == html.ElementNode && c.Data == "div" {
@@ -89,12 +91,11 @@ func (t *BinanceTask) fetchAnnouncement() {
 					// publish to subscribers
 					// a json object, title and herf
 					obj := map[string]string{
-						"title": c.FirstChild.Data,
-						"link":  herf,
+						"content": c.FirstChild.Data,
+						"link":    herf,
 					}
 
 					if data, err := json.Marshal(obj); err == nil {
-
 						t.ps.Publish(BinanceAnnouncement, string(data))
 					} else {
 						log.Println("Error marshaling JSON:", err)

@@ -1,13 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/ethanzhrepo/sphinx-insight/core/db"
 	"github.com/ethanzhrepo/sphinx-insight/core/notifier"
+	pipeline "github.com/ethanzhrepo/sphinx-insight/core/pipline"
+	"github.com/ethanzhrepo/sphinx-insight/core/processor"
 	"github.com/ethanzhrepo/sphinx-insight/core/task"
 	"github.com/joho/godotenv"
 )
@@ -24,34 +24,24 @@ func main() {
 	}
 	defer db.Close()
 
-	// telegram
-	// from env
-	bot_token := os.Getenv("TELEGRAM_BOT_TOKEN")
-	chat_id_str := os.Getenv("TELEGRAM_CHAT_ID")
-	chat_id, err := strconv.ParseInt(chat_id_str, 10, 64)
-	if err != nil {
-		panic(err)
+	telegram := notifier.NewTelegramBot()
+	go telegram.Connect(
+		os.Getenv("TELEGRAM_BOT_TOKEN"),
+	)
+
+	processors := []processor.Processor{
+		// processor.NewChatgptProcessor(),
+		processor.NewTelegramProcessor(telegram),
 	}
+	pip := pipeline.NewPipeline(processors...)
 
-	telegram_notifier := notifier.NewTelegramNotifier()
-	go telegram_notifier.Connect(bot_token)
+	pubsub := notifier.NewSimplePubSub()
+	ch := pubsub.Subscribe(task.BinanceAnnouncement)
 
-	// start binance job
-	ps := notifier.NewSimplePubSub()
+	go pip.Start(ch)
 
-	telegramChannel := ps.Subscribe(task.BinanceAnnouncement)
-	go func() {
-		for msg := range telegramChannel {
-			jsonMap := make(map[string]string)
-			err := json.Unmarshal([]byte(msg), &jsonMap)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			telegram_notifier.SendTextWithLink(chat_id, jsonMap["title"], jsonMap["link"])
-		}
-	}()
+	binanceTask := task.NewBinanceTask(pubsub, db)
+	defer binanceTask.Close()
 
-	binanceTask := task.NewBinanceTask(ps, db)
 	binanceTask.Run()
 }
