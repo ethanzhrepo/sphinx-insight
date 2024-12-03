@@ -11,6 +11,8 @@ Perform the following operations in the code root directory
 touch .env
 echo "TELEGRAM_BOT_TOKEN=yourtoken" >> .env
 echo "TELEGRAM_CHAT_ID=yourchatid" >> .env
+echo OPENAI_API_KEY=your-openai-key >> .env
+echo DEBUG=true >> .env
 ```
 
 Then run go run main.go for testing
